@@ -2,7 +2,9 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CashFlowTab } from "@/components/financeiro/CashFlowTab";
 import { CommissionReportTab } from "@/components/financeiro/CommissionReportTab";
-import { DollarSign, FileText } from "lucide-react";
+import { ExpensesTab } from "@/components/financeiro/ExpensesTab";
+import { InventoryTab } from "@/components/financeiro/InventoryTab";
+import { DollarSign, FileText, TrendingDown, Package } from "lucide-react";
 
 export default function Financeiro() {
   return (
@@ -10,7 +12,7 @@ export default function Financeiro() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Financeiro</h1>
-          <p className="mt-1 text-muted-foreground">Controle de caixa e comissões</p>
+          <p className="mt-1 text-muted-foreground">Controle de caixa, despesas, estoque e comissões</p>
         </div>
 
         <Tabs defaultValue="cash-flow" className="space-y-6">
@@ -19,14 +21,30 @@ export default function Financeiro() {
               <DollarSign className="h-4 w-4" />
               Fluxo de Caixa
             </TabsTrigger>
+            <TabsTrigger value="expenses" className="flex items-center gap-2">
+              <TrendingDown className="h-4 w-4" />
+              Despesas
+            </TabsTrigger>
+            <TabsTrigger value="inventory" className="flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              Estoque
+            </TabsTrigger>
             <TabsTrigger value="commission" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
-              Relatório de Comissões
+              Comissões
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="cash-flow" className="mt-6">
             <CashFlowTab />
+          </TabsContent>
+
+          <TabsContent value="expenses" className="mt-6">
+            <ExpensesTab />
+          </TabsContent>
+
+          <TabsContent value="inventory" className="mt-6">
+            <InventoryTab />
           </TabsContent>
 
           <TabsContent value="commission" className="mt-6">

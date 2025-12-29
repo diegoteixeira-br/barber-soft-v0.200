@@ -24,9 +24,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useProducts, Product } from "@/hooks/useProducts";
+import { useProducts } from "@/hooks/useProducts";
 import { useProductSales } from "@/hooks/useProductSales";
 import { useBarbers } from "@/hooks/useBarbers";
+import { useCurrentUnit } from "@/contexts/UnitContext";
 import { useMemo, useEffect } from "react";
 
 const formSchema = z.object({
@@ -45,9 +46,10 @@ interface ProductSaleModalProps {
 }
 
 export function ProductSaleModal({ open, onOpenChange }: ProductSaleModalProps) {
+  const { currentUnitId } = useCurrentUnit();
   const { products } = useProducts();
   const { createSale } = useProductSales();
-  const { barbers } = useBarbers();
+  const { barbers } = useBarbers(currentUnitId);
 
   const activeProducts = useMemo(
     () => products.filter((p) => p.is_active && p.stock_quantity > 0),
