@@ -492,6 +492,41 @@ export const DemoTourModal = ({ open, onOpenChange }: DemoTourModalProps) => {
     }
   }, [isMuted]);
 
+  // Preload all audio in background when modal opens
+  const preloadAllAudio = useCallback(async () => {
+    const preloadPromises = narrationTexts.map(async (text, index) => {
+      // Skip if already cached
+      if (audioCache.current.has(index)) return;
+
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+            body: JSON.stringify({ text }),
+          }
+        );
+
+        if (response.ok) {
+          const audioBlob = await response.blob();
+          const audioUrl = URL.createObjectURL(audioBlob);
+          audioCache.current.set(index, audioUrl);
+          console.log(`Preloaded audio for slide ${index + 1}`);
+        }
+      } catch (error) {
+        console.error(`Failed to preload audio for slide ${index + 1}:`, error);
+      }
+    });
+
+    // Load all in parallel
+    await Promise.allSettled(preloadPromises);
+  }, []);
+
   const nextSlide = useCallback(() => {
     setCurrentSlide((prev) => (prev + 1) % slides.length);
   }, []);
@@ -499,6 +534,13 @@ export const DemoTourModal = ({ open, onOpenChange }: DemoTourModalProps) => {
   const prevSlide = useCallback(() => {
     setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
   }, []);
+
+  // Preload all audio when modal opens
+  useEffect(() => {
+    if (open) {
+      preloadAllAudio();
+    }
+  }, [open, preloadAllAudio]);
 
   // Play narration when slide changes
   useEffect(() => {
@@ -511,7 +553,7 @@ export const DemoTourModal = ({ open, onOpenChange }: DemoTourModalProps) => {
   useEffect(() => {
     if (!isPlaying || !open) return;
     
-    const interval = setInterval(nextSlide, 8000); // Increased to 8s to allow narration
+    const interval = setInterval(nextSlide, 8000);
     return () => clearInterval(interval);
   }, [isPlaying, open, nextSlide]);
 
