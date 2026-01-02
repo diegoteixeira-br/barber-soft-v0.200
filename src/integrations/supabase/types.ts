@@ -546,6 +546,7 @@ export type Database = {
           evolution_api_key: string | null
           evolution_instance_name: string | null
           id: string
+          is_headquarters: boolean | null
           manager_name: string | null
           name: string
           phone: string | null
@@ -558,6 +559,7 @@ export type Database = {
           evolution_api_key?: string | null
           evolution_instance_name?: string | null
           id?: string
+          is_headquarters?: boolean | null
           manager_name?: string | null
           name: string
           phone?: string | null
@@ -570,6 +572,7 @@ export type Database = {
           evolution_api_key?: string | null
           evolution_instance_name?: string | null
           id?: string
+          is_headquarters?: boolean | null
           manager_name?: string | null
           name?: string
           phone?: string | null

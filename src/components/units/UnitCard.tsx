@@ -1,4 +1,4 @@
-import { Building2, MapPin, Phone, User, MoreVertical, Pencil, Trash2, MessageCircle } from "lucide-react";
+import { Building2, MapPin, Phone, User, MoreVertical, Pencil, Trash2, MessageCircle, Crown } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,11 +18,12 @@ interface UnitCardProps {
   onEdit: (unit: Unit) => void;
   onDelete: (unit: Unit) => void;
   onConfigureWhatsApp: (unit: Unit) => void;
+  onSetHeadquarters?: (unit: Unit) => void;
 }
 
 type WhatsAppStatus = 'disconnected' | 'connected' | 'checking';
 
-export function UnitCard({ unit, onEdit, onDelete, onConfigureWhatsApp }: UnitCardProps) {
+export function UnitCard({ unit, onEdit, onDelete, onConfigureWhatsApp, onSetHeadquarters }: UnitCardProps) {
   const [whatsappStatus, setWhatsappStatus] = useState<WhatsAppStatus>('checking');
 
   useEffect(() => {
@@ -68,8 +69,16 @@ export function UnitCard({ unit, onEdit, onDelete, onConfigureWhatsApp }: UnitCa
             <Building2 className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-foreground">{unit.name}</h3>
-          <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-foreground">{unit.name}</h3>
+              {unit.is_headquarters && (
+                <Badge className="text-xs bg-primary/20 text-primary border-primary/30">
+                  <Crown className="mr-1 h-3 w-3" />
+                  Matriz
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-2 mt-1">
               {whatsappStatus === 'checking' ? (
                 <Badge variant="outline" className="text-xs text-muted-foreground">
                   <MessageCircle className="mr-1 h-3 w-3 animate-pulse" />
@@ -101,6 +110,15 @@ export function UnitCard({ unit, onEdit, onDelete, onConfigureWhatsApp }: UnitCa
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="bg-popover">
+            {!unit.is_headquarters && onSetHeadquarters && (
+              <>
+                <DropdownMenuItem onClick={() => onSetHeadquarters(unit)} className="cursor-pointer">
+                  <Crown className="mr-2 h-4 w-4" />
+                  Definir como Matriz
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuItem onClick={() => onConfigureWhatsApp(unit)} className="cursor-pointer">
               <MessageCircle className="mr-2 h-4 w-4" />
               Configurar WhatsApp

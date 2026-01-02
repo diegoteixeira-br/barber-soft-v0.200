@@ -21,7 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Unidades() {
   const { currentCompanyId } = useCurrentUnit();
-  const { units, isLoading, createUnit, updateUnit, deleteUnit, refetch } = useUnits(currentCompanyId);
+  const { units, isLoading, createUnit, updateUnit, deleteUnit, setAsHeadquarters, refetch } = useUnits(currentCompanyId);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUnit, setEditingUnit] = useState<Unit | null>(null);
   const [deletingUnit, setDeletingUnit] = useState<Unit | null>(null);
@@ -63,6 +63,10 @@ export default function Unidades() {
 
   const handleWhatsAppConnectionChange = () => {
     refetch();
+  };
+
+  const handleSetHeadquarters = (unit: Unit) => {
+    setAsHeadquarters.mutate(unit.id);
   };
 
   return (
@@ -108,6 +112,7 @@ export default function Unidades() {
                 onEdit={handleOpenModal}
                 onDelete={setDeletingUnit}
                 onConfigureWhatsApp={handleConfigureWhatsApp}
+                onSetHeadquarters={handleSetHeadquarters}
               />
             ))}
           </div>

@@ -13,6 +13,7 @@ export interface Unit {
   user_id: string;
   company_id: string | null;
   created_at: string;
+  is_headquarters: boolean;
 }
 
 interface UnitFormData {
@@ -21,6 +22,7 @@ interface UnitFormData {
   phone?: string;
   manager_name?: string;
   evolution_instance_name?: string;
+  is_headquarters?: boolean;
 }
 
 export function useUnits(companyId: string | null = null) {
@@ -33,7 +35,8 @@ const { data: units = [], isLoading, refetch } = useQuery({
       let query = supabase
         .from("units")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("is_headquarters", { ascending: false })
+        .order("created_at", { ascending: true });
 
       if (companyId) {
         query = query.eq("company_id", companyId);
@@ -135,5 +138,33 @@ const { data: units = [], isLoading, refetch } = useQuery({
     },
   });
 
-  return { units, isLoading, createUnit, updateUnit, deleteUnit, refetch };
+  const setAsHeadquarters = useMutation({
+    mutationFn: async (unitId: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      // Remove headquarters from all other units
+      await supabase
+        .from("units")
+        .update({ is_headquarters: false })
+        .eq("user_id", user.id);
+
+      // Set the selected unit as headquarters
+      const { error } = await supabase
+        .from("units")
+        .update({ is_headquarters: true })
+        .eq("id", unitId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["units"] });
+      toast({ title: "Unidade definida como matriz!" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao definir matriz", description: error.message, variant: "destructive" });
+    },
+  });
+
+  return { units, isLoading, createUnit, updateUnit, deleteUnit, setAsHeadquarters, refetch };
 }
