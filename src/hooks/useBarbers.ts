@@ -138,16 +138,30 @@ export function useBarbers(unitId: string | null | undefined) {
 
   const updateBarber = useMutation({
     mutationFn: async ({ id, ...barber }: Partial<Barber> & { id: string }) => {
+      // Check if barber has user_id to determine if email can be updated
+      const { data: currentBarber } = await supabase
+        .from("barbers")
+        .select("user_id")
+        .eq("id", id)
+        .single();
+
+      const updateData: Record<string, unknown> = {
+        name: barber.name,
+        phone: barber.phone,
+        photo_url: barber.photo_url,
+        calendar_color: barber.calendar_color,
+        commission_rate: barber.commission_rate,
+        is_active: barber.is_active,
+      };
+
+      // Only update email if barber doesn't have an associated user account
+      if (!currentBarber?.user_id && barber.email !== undefined) {
+        updateData.email = barber.email || null;
+      }
+
       const { data, error } = await supabase
         .from("barbers")
-        .update({
-          name: barber.name,
-          phone: barber.phone,
-          photo_url: barber.photo_url,
-          calendar_color: barber.calendar_color,
-          commission_rate: barber.commission_rate,
-          is_active: barber.is_active,
-        })
+        .update(updateData)
         .eq("id", id)
         .select()
         .single();
