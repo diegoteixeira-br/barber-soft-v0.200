@@ -2,6 +2,7 @@ import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { format } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -26,9 +27,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import type { Barber } from "@/hooks/useBarbers";
 import type { Service } from "@/hooks/useServices";
-import { Zap } from "lucide-react";
+import { Zap, CalendarClock } from "lucide-react";
 
 const formSchema = z.object({
   client_name: z.string().min(1, "Nome do cliente é obrigatório"),
@@ -38,6 +41,17 @@ const formSchema = z.object({
   service_id: z.string().min(1, "Selecione um serviço"),
   total_price: z.number().min(0, "Valor inválido"),
   notes: z.string().optional(),
+  schedule_later: z.boolean().default(false),
+  scheduled_date: z.string().optional(),
+  scheduled_time: z.string().optional(),
+}).refine((data) => {
+  if (data.schedule_later) {
+    return data.scheduled_date && data.scheduled_time;
+  }
+  return true;
+}, {
+  message: "Data e hora são obrigatórios para agendamento",
+  path: ["scheduled_date"],
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -69,8 +83,13 @@ export function QuickServiceModal({
       service_id: "",
       total_price: 0,
       notes: "",
+      schedule_later: false,
+      scheduled_date: "",
+      scheduled_time: "",
     },
   });
+
+  const scheduleLater = form.watch("schedule_later");
 
   const activeBarbers = useMemo(
     () => barbers.filter((b) => b.is_active),
@@ -97,6 +116,8 @@ export function QuickServiceModal({
   // Reset form when modal opens
   useEffect(() => {
     if (open) {
+      const today = format(new Date(), "yyyy-MM-dd");
+      const now = format(new Date(), "HH:mm");
       form.reset({
         client_name: "",
         client_phone: "",
@@ -105,6 +126,9 @@ export function QuickServiceModal({
         service_id: "",
         total_price: 0,
         notes: "",
+        schedule_later: false,
+        scheduled_date: today,
+        scheduled_time: now,
       });
     }
   }, [open, form, activeBarbers]);
@@ -245,6 +269,63 @@ export function QuickServiceModal({
               )}
             />
 
+            {/* Toggle para agendar */}
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="flex items-center gap-3">
+                <CalendarClock className="h-5 w-5 text-muted-foreground" />
+                <div className="space-y-0.5">
+                  <Label htmlFor="schedule-later">Agendar para depois</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Agendar o serviço para uma data e hora específica
+                  </p>
+                </div>
+              </div>
+              <FormField
+                control={form.control}
+                name="schedule_later"
+                render={({ field }) => (
+                  <Switch
+                    id="schedule-later"
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                )}
+              />
+            </div>
+
+            {/* Campos de data/hora quando agendar para depois */}
+            {scheduleLater && (
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="scheduled_date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Data</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="scheduled_time"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Hora</FormLabel>
+                      <FormControl>
+                        <Input type="time" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
+
             <FormField
               control={form.control}
               name="notes"
@@ -272,7 +353,7 @@ export function QuickServiceModal({
                 Cancelar
               </Button>
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Salvando..." : "Lançar Atendimento"}
+                {isLoading ? "Salvando..." : scheduleLater ? "Agendar Serviço" : "Lançar Atendimento"}
               </Button>
             </div>
           </form>

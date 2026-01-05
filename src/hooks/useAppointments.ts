@@ -53,6 +53,9 @@ export interface QuickServiceFormData {
   service_id: string;
   total_price: number;
   notes?: string;
+  schedule_later?: boolean;
+  scheduled_date?: string;
+  scheduled_time?: string;
 }
 
 export function useAppointments(startDate?: Date, endDate?: Date, barberId?: string | null) {
@@ -356,7 +359,7 @@ export function useAppointments(startDate?: Date, endDate?: Date, barberId?: str
   });
 
 
-  // Create quick service (already completed)
+  // Create quick service (already completed) or schedule for later
   const createQuickService = useMutation({
     mutationFn: async (data: QuickServiceFormData) => {
       if (!currentUnitId) throw new Error("Nenhuma unidade selecionada");
@@ -370,8 +373,27 @@ export function useAppointments(startDate?: Date, endDate?: Date, barberId?: str
 
       if (serviceError) throw serviceError;
 
-      const now = new Date();
-      const endTime = new Date(now.getTime() + service.duration_minutes * 60000);
+      let startTime: Date;
+      let status: AppointmentStatus;
+
+      if (data.schedule_later && data.scheduled_date && data.scheduled_time) {
+        // Schedule for later
+        startTime = new Date(`${data.scheduled_date}T${data.scheduled_time}`);
+        status = "pending";
+
+        // Check for conflicts
+        const endTime = new Date(startTime.getTime() + service.duration_minutes * 60000);
+        const conflict = await checkConflict(data.barber_id, startTime, endTime);
+        if (conflict) {
+          throw new Error(`Horário ocupado! ${conflict.client_name} já tem agendamento nesse horário.`);
+        }
+      } else {
+        // Quick service (now)
+        startTime = new Date();
+        status = "completed";
+      }
+
+      const endTime = new Date(startTime.getTime() + service.duration_minutes * 60000);
 
       const { data: appointment, error } = await supabase
         .from("appointments")
@@ -383,11 +405,11 @@ export function useAppointments(startDate?: Date, endDate?: Date, barberId?: str
           client_name: data.client_name,
           client_phone: data.client_phone || null,
           client_birth_date: data.client_birth_date || null,
-          start_time: now.toISOString(),
+          start_time: startTime.toISOString(),
           end_time: endTime.toISOString(),
           total_price: data.total_price,
           notes: data.notes || null,
-          status: "completed", // Already completed!
+          status,
         })
         .select()
         .single();
@@ -395,12 +417,15 @@ export function useAppointments(startDate?: Date, endDate?: Date, barberId?: str
       if (error) throw error;
       return appointment;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
-      toast({ title: "Atendimento registrado com sucesso!" });
+      const message = variables.schedule_later 
+        ? "Serviço agendado com sucesso!" 
+        : "Atendimento registrado com sucesso!";
+      toast({ title: message });
     },
     onError: (error) => {
-      toast({ title: "Erro ao registrar atendimento", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao registrar", description: error.message, variant: "destructive" });
     },
   });
 
