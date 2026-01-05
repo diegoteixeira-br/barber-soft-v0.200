@@ -96,6 +96,7 @@ export type Database = {
       }
       automation_logs: {
         Row: {
+          appointment_id: string | null
           automation_type: string
           client_id: string
           company_id: string
@@ -106,6 +107,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          appointment_id?: string | null
           automation_type: string
           client_id: string
           company_id: string
@@ -116,6 +118,7 @@ export type Database = {
           status?: string
         }
         Update: {
+          appointment_id?: string | null
           automation_type?: string
           client_id?: string
           company_id?: string
@@ -126,6 +129,13 @@ export type Database = {
           status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "automation_logs_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "automation_logs_client_id_fkey"
             columns: ["client_id"]
@@ -207,6 +217,9 @@ export type Database = {
       }
       business_settings: {
         Row: {
+          appointment_reminder_enabled: boolean | null
+          appointment_reminder_minutes: number | null
+          appointment_reminder_template: string | null
           automation_send_hour: number | null
           automation_send_minute: number | null
           birthday_automation_enabled: boolean | null
@@ -228,6 +241,9 @@ export type Database = {
           webhook_url: string | null
         }
         Insert: {
+          appointment_reminder_enabled?: boolean | null
+          appointment_reminder_minutes?: number | null
+          appointment_reminder_template?: string | null
           automation_send_hour?: number | null
           automation_send_minute?: number | null
           birthday_automation_enabled?: boolean | null
@@ -249,6 +265,9 @@ export type Database = {
           webhook_url?: string | null
         }
         Update: {
+          appointment_reminder_enabled?: boolean | null
+          appointment_reminder_minutes?: number | null
+          appointment_reminder_template?: string | null
           automation_send_hour?: number | null
           automation_send_minute?: number | null
           birthday_automation_enabled?: boolean | null

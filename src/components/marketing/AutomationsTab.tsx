@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Cake, UserX, Save, Loader2, Clock } from "lucide-react";
+import { Cake, UserX, Save, Loader2, Clock, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,9 @@ export function AutomationsTab() {
   const [rescueMessage, setRescueMessage] = useState("");
   const [sendHour, setSendHour] = useState(11);
   const [sendMinute, setSendMinute] = useState(30);
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [reminderMinutes, setReminderMinutes] = useState(30);
+  const [reminderMessage, setReminderMessage] = useState("");
 
   useEffect(() => {
     if (settings) {
@@ -30,6 +33,9 @@ export function AutomationsTab() {
       setRescueMessage(settings.rescue_message_template ?? "");
       setSendHour(settings.automation_send_hour ?? 11);
       setSendMinute(settings.automation_send_minute ?? 30);
+      setReminderEnabled(settings.appointment_reminder_enabled ?? false);
+      setReminderMinutes(settings.appointment_reminder_minutes ?? 30);
+      setReminderMessage(settings.appointment_reminder_template ?? "");
     }
   }, [settings]);
 
@@ -42,8 +48,19 @@ export function AutomationsTab() {
       rescue_message_template: rescueMessage,
       automation_send_hour: sendHour,
       automation_send_minute: sendMinute,
+      appointment_reminder_enabled: reminderEnabled,
+      appointment_reminder_minutes: reminderMinutes,
+      appointment_reminder_template: reminderMessage,
     });
   };
+
+  // Reminder time options (in minutes)
+  const reminderTimeOptions = [
+    { value: 15, label: "15 minutos" },
+    { value: 30, label: "30 minutos" },
+    { value: 45, label: "45 minutos" },
+    { value: 60, label: "1 hora" },
+  ];
 
   if (isLoading) {
     return (
@@ -203,6 +220,76 @@ export function AutomationsTab() {
             <p className="mt-1 text-xs text-muted-foreground">
               Use <code className="rounded bg-muted px-1">{"{{nome}}"}</code> para inserir o nome do cliente
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Appointment Reminder Automation */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/10">
+                <Bell className="h-5 w-5 text-green-500" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Lembrete de Agendamento</CardTitle>
+                <CardDescription>
+                  Envio automático de lembrete antes do horário agendado
+                </CardDescription>
+              </div>
+            </div>
+            <Switch
+              checked={reminderEnabled}
+              onCheckedChange={setReminderEnabled}
+            />
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            <Label htmlFor="reminder-minutes" className="whitespace-nowrap">
+              Enviar
+            </Label>
+            <Select 
+              value={reminderMinutes.toString()} 
+              onValueChange={(v) => setReminderMinutes(Number(v))}
+              disabled={!reminderEnabled}
+            >
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {reminderTimeOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value.toString()}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-sm text-muted-foreground">antes do agendamento</span>
+          </div>
+
+          <div>
+            <Label htmlFor="reminder-message">Mensagem de Lembrete</Label>
+            <Textarea
+              id="reminder-message"
+              placeholder="Olá {{nome}}! 👋 Lembrando do seu agendamento para HOJE às {{horario}} com {{profissional}}. 📍 {{servico}} Aguardamos você!"
+              value={reminderMessage}
+              onChange={(e) => setReminderMessage(e.target.value)}
+              className="mt-2 min-h-[100px]"
+              disabled={!reminderEnabled}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Use: <code className="rounded bg-muted px-1">{"{{nome}}"}</code>, 
+              <code className="ml-1 rounded bg-muted px-1">{"{{horario}}"}</code>, 
+              <code className="ml-1 rounded bg-muted px-1">{"{{profissional}}"}</code>, 
+              <code className="ml-1 rounded bg-muted px-1">{"{{servico}}"}</code>, 
+              <code className="ml-1 rounded bg-muted px-1">{"{{data}}"}</code>
+            </p>
+          </div>
+
+          <div className="rounded-lg bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-400">
+            <strong>✅ Proteção anti-spam:</strong> Cada cliente recebe apenas 1 lembrete por agendamento, mesmo que o sistema verifique várias vezes.
           </div>
         </CardContent>
       </Card>
