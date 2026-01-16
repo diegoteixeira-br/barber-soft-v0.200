@@ -1,9 +1,10 @@
 import { useMemo, useState, useRef, useLayoutEffect } from "react";
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, setHours, setMinutes } from "date-fns";
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, setHours, setMinutes, getDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarEvent } from "./CalendarEvent";
 import { useCurrentTime } from "@/hooks/useCurrentTime";
 import type { Appointment } from "@/hooks/useAppointments";
+import type { BusinessHour, Holiday } from "@/hooks/useBusinessHours";
 
 interface Barber {
   id: string;
@@ -23,6 +24,11 @@ interface CalendarWeekViewProps {
   isCompactMode?: boolean;
   barbers?: Barber[];
   selectedBarberId?: string | null;
+  businessHours?: BusinessHour[];
+  holidays?: Holiday[];
+  isOpenOnDate?: (date: Date) => boolean;
+  getOpeningHours?: (date: Date) => { opening: string; closing: string } | null;
+  isHoliday?: (date: Date) => Holiday | undefined;
 }
 
 const DEFAULT_HOUR_HEIGHT = 80;
@@ -40,6 +46,11 @@ export function CalendarWeekView({
   isCompactMode = false,
   barbers = [],
   selectedBarberId = null,
+  businessHours = [],
+  holidays = [],
+  isOpenOnDate,
+  getOpeningHours,
+  isHoliday,
 }: CalendarWeekViewProps) {
   const weekStart = startOfWeek(currentDate, { locale: ptBR });
   const weekEnd = endOfWeek(currentDate, { locale: ptBR });
@@ -144,21 +155,34 @@ export function CalendarWeekView({
           <div className="p-2 text-center text-xs text-muted-foreground border-r border-border flex items-center justify-center">
             Horário
           </div>
-          {days.map(day => (
-            <div
-              key={day.toISOString()}
-              className={`p-2 text-center border-r border-border last:border-r-0 flex flex-col items-center justify-center ${
-                isToday(day) ? "bg-primary/10" : ""
-              }`}
-            >
-              <p className="text-xs text-muted-foreground capitalize">
-                {format(day, "EEE", { locale: ptBR })}
-              </p>
-              <p className={`text-lg font-semibold ${isToday(day) ? "text-primary" : ""}`}>
-                {format(day, "d")}
-              </p>
-            </div>
-          ))}
+          {days.map(day => {
+            const isClosed = isOpenOnDate ? !isOpenOnDate(day) : false;
+            const holiday = isHoliday ? isHoliday(day) : undefined;
+            
+            return (
+              <div
+                key={day.toISOString()}
+                className={`p-2 text-center border-r border-border last:border-r-0 flex flex-col items-center justify-center ${
+                  isToday(day) ? "bg-primary/10" : ""
+                } ${isClosed ? "bg-muted/50" : ""}`}
+              >
+                <p className="text-xs text-muted-foreground capitalize">
+                  {format(day, "EEE", { locale: ptBR })}
+                </p>
+                <p className={`text-lg font-semibold ${isToday(day) ? "text-primary" : ""} ${isClosed ? "text-muted-foreground" : ""}`}>
+                  {format(day, "d")}
+                </p>
+                {holiday && (
+                  <p className="text-[10px] text-orange-600 dark:text-orange-400 truncate max-w-full">
+                    {holiday.name}
+                  </p>
+                )}
+                {isClosed && !holiday && (
+                  <p className="text-[10px] text-muted-foreground">Fechado</p>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* Time slots - SCROLLABLE */}
@@ -183,11 +207,12 @@ export function CalendarWeekView({
             {days.map((day) => {
               const dayKey = format(day, "yyyy-MM-dd");
               const isDayToday = isToday(day);
+              const isClosed = isOpenOnDate ? !isOpenOnDate(day) : false;
               
               return (
-                <div key={day.toISOString()} className="border-r border-border last:border-r-0 relative">
+                <div key={day.toISOString()} className={`border-r border-border last:border-r-0 relative ${isClosed ? "bg-muted/30" : ""}`}>
                   {/* Current time indicator - only on today's column */}
-                  {isDayToday && showTimeIndicator && (
+                  {isDayToday && showTimeIndicator && !isClosed && (
                     <div
                       className="absolute left-0 right-0 z-20 pointer-events-none"
                       style={{ top: `${timeIndicatorPosition}px` }}
@@ -195,6 +220,15 @@ export function CalendarWeekView({
                       <div className="relative flex items-center">
                         <div className="absolute -left-1.5 w-3 h-3 bg-red-500 rounded-full shadow-sm" />
                         <div className="w-full h-0.5 bg-red-500" />
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Closed overlay */}
+                  {isClosed && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                      <div className="bg-muted/80 text-muted-foreground px-3 py-1 rounded text-sm font-medium">
+                        Fechado
                       </div>
                     </div>
                   )}
@@ -207,13 +241,17 @@ export function CalendarWeekView({
                     return (
                       <div
                         key={hour}
-                        className={`border-b border-border p-0.5 cursor-pointer hover:bg-muted/30 transition-colors ${
-                          withinHours 
-                            ? "bg-blue-100/40 dark:bg-blue-900/20" 
-                            : ""
-                        } ${isDayToday && withinHours ? "bg-blue-100/50 dark:bg-blue-900/30" : ""}`}
+                        className={`border-b border-border p-0.5 transition-colors ${
+                          isClosed 
+                            ? "bg-muted/40 cursor-not-allowed" 
+                            : `cursor-pointer hover:bg-muted/30 ${
+                                withinHours 
+                                  ? "bg-blue-100/40 dark:bg-blue-900/20" 
+                                  : ""
+                              } ${isDayToday && withinHours ? "bg-blue-100/50 dark:bg-blue-900/30" : ""}`
+                        }`}
                         style={{ height: DEFAULT_HOUR_HEIGHT }}
-                        onClick={() => onSlotClick(slotDate)}
+                        onClick={() => !isClosed && onSlotClick(slotDate)}
                       >
                         <div className="space-y-0.5 overflow-hidden h-full">
                           {slotAppointments.map(apt => (

@@ -221,6 +221,39 @@ export type Database = {
           },
         ]
       }
+      business_hours: {
+        Row: {
+          closing_time: string | null
+          created_at: string | null
+          day_of_week: number
+          id: string
+          is_open: boolean | null
+          opening_time: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          closing_time?: string | null
+          created_at?: string | null
+          day_of_week: number
+          id?: string
+          is_open?: boolean | null
+          opening_time?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          closing_time?: string | null
+          created_at?: string | null
+          day_of_week?: number
+          id?: string
+          is_open?: boolean | null
+          opening_time?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       business_settings: {
         Row: {
           appointment_reminder_enabled: boolean | null
@@ -567,6 +600,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      holidays: {
+        Row: {
+          created_at: string | null
+          date: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          date: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       marketing_campaigns: {
         Row: {

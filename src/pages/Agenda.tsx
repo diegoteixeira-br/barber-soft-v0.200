@@ -16,6 +16,7 @@ import { useServices } from "@/hooks/useServices";
 import { useCurrentUnit } from "@/contexts/UnitContext";
 import { useAppointmentNotification } from "@/hooks/useAppointmentNotification";
 import { useBusinessSettings } from "@/hooks/useBusinessSettings";
+import { useBusinessHours } from "@/hooks/useBusinessHours";
 import { useUnits } from "@/hooks/useUnits";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -74,6 +75,7 @@ export default function Agenda() {
   const { barbers, isLoading: barbersLoading } = useBarbers(currentUnitId);
   const { services, isLoading: servicesLoading } = useServices(currentUnitId);
   const { settings: businessSettings } = useBusinessSettings();
+  const { businessHours, holidays, isOpenOnDate, getOpeningHours, isHoliday } = useBusinessHours();
   const { units } = useUnits();
   
   // Get current unit's timezone
@@ -232,6 +234,11 @@ export default function Agenda() {
                     closingTime={businessSettings?.closing_time || undefined}
                     timezone={currentUnit?.timezone || undefined}
                     isCompactMode={isCompactMode}
+                    businessHours={businessHours}
+                    holidays={holidays}
+                    isOpenOnDate={isOpenOnDate}
+                    getOpeningHours={getOpeningHours}
+                    isHoliday={isHoliday}
                   />
                 )}
                 {view === "day" && (
@@ -246,6 +253,11 @@ export default function Agenda() {
                     closingTime={businessSettings?.closing_time || undefined}
                     timezone={currentUnit?.timezone || undefined}
                     isCompactMode={isCompactMode}
+                    businessHours={businessHours}
+                    holidays={holidays}
+                    isOpenOnDate={isOpenOnDate}
+                    getOpeningHours={getOpeningHours}
+                    isHoliday={isHoliday}
                   />
                 )}
                 {view === "month" && (
@@ -254,6 +266,10 @@ export default function Agenda() {
                     appointments={appointments}
                     onAppointmentClick={handleAppointmentClick}
                     onDayClick={handleDayClick}
+                    businessHours={businessHours}
+                    holidays={holidays}
+                    isOpenOnDate={isOpenOnDate}
+                    isHoliday={isHoliday}
                   />
                 )}
               </>

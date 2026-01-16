@@ -3,17 +3,31 @@ import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInte
 import { ptBR } from "date-fns/locale";
 import { CalendarEvent } from "./CalendarEvent";
 import type { Appointment } from "@/hooks/useAppointments";
+import type { BusinessHour, Holiday } from "@/hooks/useBusinessHours";
 
 interface CalendarMonthViewProps {
   currentDate: Date;
   appointments: Appointment[];
   onAppointmentClick: (appointment: Appointment) => void;
   onDayClick: (date: Date) => void;
+  businessHours?: BusinessHour[];
+  holidays?: Holiday[];
+  isOpenOnDate?: (date: Date) => boolean;
+  isHoliday?: (date: Date) => Holiday | undefined;
 }
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-export function CalendarMonthView({ currentDate, appointments, onAppointmentClick, onDayClick }: CalendarMonthViewProps) {
+export function CalendarMonthView({ 
+  currentDate, 
+  appointments, 
+  onAppointmentClick, 
+  onDayClick,
+  businessHours = [],
+  holidays = [],
+  isOpenOnDate,
+  isHoliday,
+}: CalendarMonthViewProps) {
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const calendarStart = startOfWeek(monthStart, { locale: ptBR });
@@ -55,20 +69,22 @@ export function CalendarMonthView({ currentDate, appointments, onAppointmentClic
           const dayAppointments = appointmentsByDay[dayKey] || [];
           const isCurrentMonth = isSameMonth(day, currentDate);
           const isCurrentDay = isToday(day);
+          const isClosed = isOpenOnDate ? !isOpenOnDate(day) : false;
+          const holiday = isHoliday ? isHoliday(day) : undefined;
 
           return (
             <div
               key={day.toISOString()}
               className={`min-h-[120px] border border-border rounded-lg p-1 cursor-pointer transition-colors hover:bg-muted/30 ${
                 !isCurrentMonth ? "opacity-40 bg-muted/10" : "bg-card"
-              } ${isCurrentDay ? "ring-2 ring-primary" : ""}`}
+              } ${isCurrentDay ? "ring-2 ring-primary" : ""} ${isClosed ? "bg-muted/40" : ""}`}
               onClick={() => onDayClick(day)}
             >
               <div className="flex items-center justify-between mb-1">
                 <span
                   className={`text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full ${
                     isCurrentDay ? "bg-primary text-primary-foreground" : ""
-                  }`}
+                  } ${isClosed && !isCurrentDay ? "text-muted-foreground" : ""}`}
                 >
                   {format(day, "d")}
                 </span>
@@ -78,6 +94,14 @@ export function CalendarMonthView({ currentDate, appointments, onAppointmentClic
                   </span>
                 )}
               </div>
+              {holiday && (
+                <div className="text-[10px] text-orange-600 dark:text-orange-400 truncate mb-1">
+                  {holiday.name}
+                </div>
+              )}
+              {isClosed && !holiday && (
+                <div className="text-[10px] text-muted-foreground mb-1">Fechado</div>
+              )}
               <div className="space-y-0.5">
                 {dayAppointments.slice(0, 3).map(apt => (
                   <CalendarEvent
