@@ -1,146 +1,165 @@
 
-# Plano: Senha de Seguranca para Exclusao de Agendamentos
+# Plano: Proteger Configuracao da Senha de Exclusao
 
-## Objetivo
+## Problema Identificado
 
-Implementar uma senha de seguranca definida pelo dono da barbearia que sera exigida antes de excluir agendamentos confirmados ou finalizados. Isso protege o fluxo financeiro contra exclusoes nao autorizadas por colaboradores (profissionais).
+Atualmente, qualquer pessoa com acesso ao sistema pode:
+1. Ir em Configuracoes → Conta
+2. Desativar o toggle de "Exigir senha para excluir"
+3. Pronto - agora pode excluir agendamentos sem senha
 
-## Por Que Isso e Importante?
+Isso anula completamente a protecao implementada.
 
-O dono da barbearia compartilha acesso ao sistema com os profissionais, mas precisa garantir que apenas pessoas autorizadas possam excluir registros que impactam o caixa. Uma senha separada garante essa camada extra de seguranca.
+## Solucao Proposta
 
-## Como Vai Funcionar
+### 1. Exigir Senha Atual para Modificar
+
+Quando a protecao JA estiver ativada:
+- Para DESATIVAR: exigir a senha atual
+- Para ALTERAR a senha: exigir a senha atual primeiro
+- Para acessar a aba CONTA: nao precisa (outras funcoes sao legitimas)
+
+### 2. Recuperacao de Senha via Email
+
+Se o dono esquecer a senha de exclusao:
+- Mostrar botao "Esqueci minha senha de exclusao"
+- Enviar email para o dono da conta com link para redefinir
+- Link valido por 1 hora, uso unico
+- Ao clicar, permite definir nova senha de exclusao
+
+## Fluxo Visual
 
 ```text
-Profissional clica em "Excluir" agendamento
-        |
-        v
-Sistema verifica se agendamento e confirmado/finalizado
-        |
-        v
-  [SIM] --> Modal solicita senha de exclusao
-        |
-        v
-Senha correta? --> Prossegue com exclusao
-        |
-  [NAO] --> Mensagem de erro "Senha incorreta"
+Colaborador tenta desativar protecao
+              |
+              v
+   [Toggle OFF] <-- Clica para desligar
+              |
+              v
+   Modal: "Digite a senha de exclusao"
+              |
+    [Senha correta?]
+         /       \
+       SIM       NAO
+        |          |
+   Desativa    "Senha incorreta"
+   protecao    
 ```
 
-## Onde o Dono Configura a Senha
+## Recuperacao de Senha
 
-Na aba **Conta** em Configuracoes, sera adicionado um novo card:
-
-| Campo | Descricao |
-|-------|-----------|
-| Senha de Exclusao | Senha numerica de 4-6 digitos |
-| Confirmar Senha | Confirmacao da senha |
-| Habilitar/Desabilitar | Toggle para ativar a protecao |
-
-## Seguranca da Senha
-
-A senha sera armazenada de forma segura no banco de dados, em uma coluna separada na tabela `business_settings`. 
-
-**Importante:** A validacao acontecera **no frontend** comparando com o hash da senha. Para maior seguranca, poderiamos criar uma edge function, mas para simplicidade e velocidade, faremos a validacao local usando bcrypt/hash.
-
-**Abordagem simplificada:** Armazenar a senha com hash SHA-256 e comparar no frontend. Nao e tao seguro quanto bcrypt, mas impede que alguem veja a senha em texto claro.
+```text
+Dono esqueceu a senha de exclusao
+              |
+              v
+   Clica "Esqueci minha senha"
+              |
+              v
+   Email enviado para: dono@email.com
+              |
+              v
+   Link temporario (1h) --> /reset-deletion-password?token=xxx
+              |
+              v
+   Pagina para definir nova senha de exclusao
+```
 
 ## Mudancas Necessarias
 
 ### 1. Banco de Dados
 
-Adicionar colunas na tabela `business_settings`:
+Adicionar colunas para token de recuperacao:
 
 | Coluna | Tipo | Descricao |
 |--------|------|-----------|
-| `deletion_password_hash` | TEXT | Hash da senha de exclusao |
-| `deletion_password_enabled` | BOOLEAN | Se a protecao esta ativa |
+| `deletion_password_reset_token` | TEXT | Token temporario para reset |
+| `deletion_password_reset_expires` | TIMESTAMP | Quando o token expira |
 
-### 2. Hook useBusinessSettings
+### 2. AccountTab.tsx
 
-Atualizar interface e funcoes para incluir os novos campos:
-- `deletion_password_enabled`
-- Funcao `setDeletionPassword(password)` que gera hash e salva
-- Funcao `verifyDeletionPassword(password)` que compara hashes
+Modificar o card de Senha de Exclusao:
+- Adicionar validacao de senha ao desativar
+- Adicionar validacao de senha ao alterar
+- Adicionar link "Esqueci minha senha de exclusao"
+- Modal para verificar senha atual antes de qualquer mudanca
 
-### 3. AccountTab (Configuracoes)
+### 3. useBusinessSettings.ts
 
-Adicionar novo card de "Senha de Exclusao":
-- Input para nova senha (mascarado)
-- Input para confirmar senha
-- Toggle para ativar/desativar
-- Botao para salvar
+Adicionar novas funcoes:
+- `requestDeletionPasswordReset()`: gera token e envia email
+- `resetDeletionPasswordWithToken(token, newPassword)`: valida token e define nova senha
+- Atualizar `disableDeletionPassword(currentPassword)`: exigir senha
 
-### 4. AppointmentDetailsModal
+### 4. Edge Function: reset-deletion-password
 
-Modificar o fluxo de exclusao:
-1. Quando clicar em Excluir (agendamento confirmado/finalizado)
-2. Se `deletion_password_enabled` estiver ativo:
-   - Mostrar campo de senha antes do motivo
-   - Validar senha antes de permitir exclusao
-3. Se senha incorreta, mostrar erro e bloquear
+Nova edge function para:
+- Gerar token seguro
+- Enviar email com link de recuperacao
+- Validar token e permitir reset
 
-### 5. Arquivos a Modificar
+### 5. Nova Rota: /reset-deletion-password
 
-| Arquivo | Mudanca |
-|---------|---------|
-| Migracao SQL | Adicionar colunas `deletion_password_hash` e `deletion_password_enabled` |
-| `useBusinessSettings.ts` | Adicionar interfaces e funcoes para senha |
-| `AccountTab.tsx` | Novo card para configurar senha de exclusao |
-| `AppointmentDetailsModal.tsx` | Adicionar validacao de senha antes de excluir |
+Pagina simples para:
+- Validar token da URL
+- Permitir definir nova senha de exclusao
+- Redirecionar para configuracoes apos sucesso
 
 ## Interface do Usuario
 
-### Card de Configuracao (AccountTab)
+### Card de Senha de Exclusao (com protecao ativa)
 
 ```text
-+---------------------------------------------+
-| [Icone Cadeado] Senha de Exclusao           |
-| Proteja a exclusao de agendamentos          |
-+---------------------------------------------+
-| [Toggle] Exigir senha para excluir          |
-|                                             |
-| Nova Senha:    [........]                   |
-| Confirmar:     [........]                   |
-|                                             |
-| [Salvar Senha]                              |
-+---------------------------------------------+
++-----------------------------------------------+
+| [Cadeado] Senha de Exclusao                   |
+| Proteja a exclusao de agendamentos            |
++-----------------------------------------------+
+| [Toggle ON] Exigir senha para excluir         |
+|                                               |
+| Para alterar esta configuracao, voce          |
+| precisara informar a senha atual.             |
+|                                               |
+| [Alterar Senha]  [Desativar Protecao]         |
+|                                               |
+| Esqueci minha senha de exclusao               |
++-----------------------------------------------+
 ```
 
-### Modal de Exclusao com Senha
+### Modal de Confirmacao
 
 ```text
-+---------------------------------------------+
-| [!] Exclusao com Registro                   |
-| Este agendamento ja foi confirmado.         |
-+---------------------------------------------+
-|                                             |
-| Senha de Exclusao: [........]               |
-|                                             |
-| Motivo da exclusao (obrigatorio):           |
-| +---------------------------------------+   |
-| |                                       |   |
-| +---------------------------------------+   |
-|                                             |
-| [Cancelar]          [Confirmar Exclusao]    |
-+---------------------------------------------+
++-----------------------------------------------+
+| Confirme sua senha de exclusao                |
++-----------------------------------------------+
+| Para [alterar/desativar] a protecao, digite   |
+| sua senha de exclusao atual:                  |
+|                                               |
+| Senha atual: [........]                       |
+|                                               |
+| [Cancelar]              [Confirmar]           |
+|                                               |
+| Esqueci minha senha                           |
++-----------------------------------------------+
 ```
 
-## Fluxo Detalhado
+### Email de Recuperacao
 
-1. **Dono configura senha:**
-   - Acessa Configuracoes → Conta
-   - Ativa toggle "Exigir senha para excluir"
-   - Define senha numerica de 4-6 digitos
-   - Sistema gera hash e salva no banco
+```text
+Assunto: Recuperar senha de exclusao - BarberSoft
 
-2. **Profissional tenta excluir:**
-   - Clica no botao Excluir em agendamento confirmado
-   - Sistema detecta que senha esta habilitada
-   - Exibe campo de senha + campo de motivo
-   - Profissional digita senha
-   - Sistema valida hash
-   - Se correto: prossegue com exclusao
-   - Se incorreto: mostra erro, bloqueia
+Ola [Nome da Barbearia],
+
+Voce solicitou a recuperacao da sua senha de exclusao.
+
+Clique no link abaixo para definir uma nova senha:
+[BOTAO: Redefinir Senha de Exclusao]
+
+Este link expira em 1 hora.
+
+Se voce nao solicitou esta recuperacao, ignore este email.
+
+Atenciosamente,
+Equipe BarberSoft
+```
 
 ## Detalhes Tecnicos
 
@@ -148,39 +167,46 @@ Modificar o fluxo de exclusao:
 
 ```sql
 ALTER TABLE public.business_settings 
-  ADD COLUMN deletion_password_hash TEXT,
-  ADD COLUMN deletion_password_enabled BOOLEAN DEFAULT false;
+  ADD COLUMN deletion_password_reset_token TEXT,
+  ADD COLUMN deletion_password_reset_expires TIMESTAMPTZ;
 ```
 
-### Geracao de Hash (useBusinessSettings)
-
-Usaremos a Web Crypto API nativa do navegador para gerar hash SHA-256:
+### Edge Function (reset-deletion-password)
 
 ```typescript
-async function hashPassword(password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
+// POST - Solicitar reset
+// Gera token crypto.randomUUID()
+// Salva no banco com expiracao de 1 hora
+// Envia email via Resend
+
+// PUT - Executar reset
+// Valida token e expiracao
+// Atualiza deletion_password_hash
+// Limpa token
 ```
 
-### Validacao de Senha
+### Arquivos a Modificar/Criar
 
-```typescript
-async function verifyDeletionPassword(inputPassword: string): Promise<boolean> {
-  if (!settings?.deletion_password_enabled || !settings?.deletion_password_hash) {
-    return true; // Nao precisa validar
-  }
-  const inputHash = await hashPassword(inputPassword);
-  return inputHash === settings.deletion_password_hash;
-}
-```
+| Arquivo | Acao | Descricao |
+|---------|------|-----------|
+| Migracao SQL | Criar | Adicionar colunas de reset token |
+| `useBusinessSettings.ts` | Modificar | Adicionar funcoes de reset |
+| `AccountTab.tsx` | Modificar | Adicionar validacao de senha + link de recuperacao |
+| `supabase/functions/reset-deletion-password` | Criar | Edge function para reset |
+| `src/pages/ResetDeletionPassword.tsx` | Criar | Pagina para redefinir senha |
+| `App.tsx` | Modificar | Adicionar nova rota |
 
-### AppointmentDetailsModal
+## Seguranca
 
-Novo state e logica:
-- `deletionPassword`: string para input
-- `passwordError`: boolean para mostrar erro
-- Validar senha antes de chamar `onDelete(reason)`
+1. **Token seguro**: UUID v4 gerado por `crypto.randomUUID()`
+2. **Expiracao curta**: 1 hora apenas
+3. **Uso unico**: Token limpo apos uso
+4. **Email verificado**: Enviado apenas para o email do dono da conta
+5. **Rate limiting**: Limite de 3 solicitacoes por hora por conta
+
+## Beneficios
+
+- Colaboradores nao podem burlar a protecao
+- Dono consegue recuperar caso esqueca a senha
+- Processo de recuperacao seguro via email
+- Nao bloqueia o acesso as outras configuracoes
